@@ -116,6 +116,7 @@ async function sendEmail(contactData)
     const apiToken = MAILTRAP_API_TOKEN;
     const fromEmail = FROM_EMAIL;
     const toEmail = TO_EMAIL;
+    const mailtrapApiUrl = MAILTRAP_API_URL;
 
     // Temporary logging to verify variables exist
     console.log('API Token exists:', !!apiToken);
@@ -167,7 +168,7 @@ This message was sent via the contact form on desallyltd.com
     };
 
     // Send email via Mailtrap Email API
-    const response = await fetch('https://send.api.mailtrap.io/api/send', {
+    const response = await fetch(mailtrapApiUrl, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${apiToken}`,

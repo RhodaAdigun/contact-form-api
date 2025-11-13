@@ -113,10 +113,10 @@ async function sendEmail(contactData)
 {
   try {
     // Get environment variables
-    const apiToken = MAILTRAP_API_TOKEN;
-    const fromEmail = FROM_EMAIL;
-    const toEmail = TO_EMAIL;
-    const mailtrapApiUrl = MAILTRAP_API_URL;
+    const apiToken = env.MAILTRAP_API_TOKEN as string;
+    const fromEmail = env.FROM_EMAIL as string;
+    const toEmail = env.TO_EMAIL as string;
+    const mailtrapApiUrl = env.MAILTRAP_API_URL as string;
 
     // Temporary logging to verify variables exist
     console.log('API Token exists:', !!apiToken);

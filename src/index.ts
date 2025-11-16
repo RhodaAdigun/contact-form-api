@@ -2,7 +2,7 @@
 // This handles POST requests to submit contact form data and sends emails via Mailtrap
 
 export default {
-  async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response>
+  async fetch(request: any, env: any, ctx: any): Promise<any>
   {
     return handleRequest(request, env);
   }

@@ -1,13 +1,31 @@
 // Cloudflare Worker for DES ALLY website's Contact Form API
 // This handles POST requests to submit contact form data and sends emails via Mailtrap
 
+export default {
+  async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response>
+  {
+    return handleRequest(request, env);
+  }
+};
 
-addEventListener('fetch', event =>
+interface Env
 {
-  event.respondWith(handleRequest(event.request));
-});
+  MAILTRAP_API_TOKEN: string;
+  FROM_EMAIL: string;
+  TO_EMAIL: string;
+  MAILTRAP_API_URL: string;
+}
 
-async function handleRequest(request)
+interface ContactData
+{
+  name: string;
+  email: string;
+  mobile?: string;
+  subject?: string;
+  message: string;
+}
+
+async function handleRequest(request: Request, env: Env)
 {
   // Handle CORS preflight requests
   if (request.method === 'OPTIONS') {
@@ -35,7 +53,7 @@ async function handleRequest(request)
     }
 
     // Send email
-    const emailResult = await sendEmail(body);
+    const emailResult = await sendEmail(body, env);
     if (!emailResult.success) {
       return createErrorResponse('Unable to send your inquiry. Please try again later.', 500);
     }
@@ -58,7 +76,7 @@ async function handleRequest(request)
   }
 }
 
-function validateInput(data)
+function validateInput(data: any)
 {
   // Check if data exists
   if (!data || typeof data !== 'object') {
@@ -109,14 +127,14 @@ function validateInput(data)
   return { isValid: true };
 }
 
-async function sendEmail(contactData)
+async function sendEmail(contactData: ContactData, env: Env)
 {
   try {
     // Get environment variables
-    const apiToken = env.MAILTRAP_API_TOKEN as string;
-    const fromEmail = env.FROM_EMAIL as string;
-    const toEmail = env.TO_EMAIL as string;
-    const mailtrapApiUrl = env.MAILTRAP_API_URL as string;
+    const apiToken = env.MAILTRAP_API_TOKEN;
+    const fromEmail = env.FROM_EMAIL;
+    const toEmail = env.TO_EMAIL;
+    const mailtrapApiUrl = env.MAILTRAP_API_URL;
 
     // Temporary logging to verify variables exist
     console.log('API Token exists:', !!apiToken);
@@ -192,7 +210,7 @@ This message was sent via the contact form on desallyltd.com
   }
 }
 
-function createErrorResponse(message, status = 400)
+function createErrorResponse(message: string, status: number = 400)
 {
   return new Response(JSON.stringify({
     status: 'error',

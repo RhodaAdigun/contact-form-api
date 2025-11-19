@@ -49,7 +49,7 @@ async function handleRequest(request: Request, env: Env)
     // Validate input
     const validation = validateInput(body);
     if (!validation.isValid) {
-      return createErrorResponse(validation.message, 400);
+      return createErrorResponse(validation.message || 'Validation failed', 400);
     }
 
     // Send email
@@ -76,7 +76,13 @@ async function handleRequest(request: Request, env: Env)
   }
 }
 
-function validateInput(data: any)
+interface ValidationResult
+{
+  isValid: boolean;
+  message?: string;
+}
+
+function validateInput(data: any): ValidationResult
 {
   // Check if data exists
   if (!data || typeof data !== 'object') {
@@ -136,11 +142,7 @@ async function sendEmail(contactData: ContactData, env: Env)
     const toEmail = env.TO_EMAIL;
     const mailtrapApiUrl = env.MAILTRAP_API_URL;
 
-    // Temporary logging to verify variables exist
-    console.log('API Token exists:', !!apiToken);
-    console.log('From Email:', fromEmail);
-    console.log('To Email:', toEmail);
-    //
+
 
     if (!apiToken || !fromEmail || !toEmail) {
       console.error('Missing required environment variables');
@@ -149,16 +151,132 @@ async function sendEmail(contactData: ContactData, env: Env)
 
     // Prepare email content
     const subject = `Contact Form: ${contactData.subject || 'New Inquiry'}`;
+
+    // Escape HTML to prevent XSS
+    const escapeHtml = (text: string) =>
+    {
+      return text
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+    };
+
+    const safeName = escapeHtml(contactData.name);
+    const safeEmail = escapeHtml(contactData.email);
+    const safeMobile = contactData.mobile ? escapeHtml(contactData.mobile) : '';
+    const safeSubject = contactData.subject ? escapeHtml(contactData.subject) : 'No subject provided';
+    // Escape HTML in message and convert newlines to <br>
+    const safeMessage = escapeHtml(contactData.message).replace(/\n/g, '<br>');
+
     const htmlContent = `
-      <h2>New Contact Form Submission</h2>
-      <p><strong>Name:</strong> ${contactData.name}</p>
-      <p><strong>Email:</strong> ${contactData.email}</p>
-      ${contactData.mobile ? `<p><strong>Mobile:</strong> ${contactData.mobile}</p>` : ''}
-      <p><strong>Subject:</strong> ${contactData.subject || 'No subject provided'}</p>
-      <h3>Message:</h3>
-      <p>${contactData.message.replace(/\n/g, '<br>')}</p>
-      <hr>
-      <p><em>This message was sent via the contact form on desallyltd.com</em></p>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>New Contact Form Submission</title>
+</head>
+<body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; background-color: #f5f5f5;">
+  <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background-color: #f5f5f5;">
+    <tr>
+      <td style="padding: 40px 20px;">
+        <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="600" style="max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 8px; box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);">
+          <!-- Header -->
+          <tr>
+            <td style="padding: 32px 40px; background-color: #1a1a1a; border-radius: 8px 8px 0 0;">
+              <h1 style="margin: 0; font-size: 24px; font-weight: 600; color: #ffffff; letter-spacing: -0.5px;">New Contact Form Submission</h1>
+            </td>
+          </tr>
+
+          <!-- Content -->
+          <tr>
+            <td style="padding: 40px;">
+              <!-- Contact Information Section -->
+              <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%">
+                <tr>
+                  <td style="padding-bottom: 24px;">
+                    <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%">
+                      <tr>
+                        <td style="width: 120px; padding-bottom: 12px; vertical-align: top;">
+                          <span style="font-size: 13px; font-weight: 600; color: #666666; text-transform: uppercase; letter-spacing: 0.5px;">Name</span>
+                        </td>
+                        <td style="padding-bottom: 12px;">
+                          <span style="font-size: 15px; color: #1a1a1a; font-weight: 500;">${safeName}</span>
+                        </td>
+                      </tr>
+                      <tr>
+                        <td style="width: 120px; padding-bottom: 12px; vertical-align: top;">
+                          <span style="font-size: 13px; font-weight: 600; color: #666666; text-transform: uppercase; letter-spacing: 0.5px;">Email</span>
+                        </td>
+                        <td style="padding-bottom: 12px;">
+                          <a href="mailto:${safeEmail}" style="font-size: 15px; color: #2563eb; text-decoration: none; font-weight: 500;">${safeEmail}</a>
+                        </td>
+                      </tr>
+                      ${safeMobile ? `
+                      <tr>
+                        <td style="width: 120px; padding-bottom: 12px; vertical-align: top;">
+                          <span style="font-size: 13px; font-weight: 600; color: #666666; text-transform: uppercase; letter-spacing: 0.5px;">Mobile</span>
+                        </td>
+                        <td style="padding-bottom: 12px;">
+                          <a href="tel:${safeMobile}" style="font-size: 15px; color: #2563eb; text-decoration: none; font-weight: 500;">${safeMobile}</a>
+                        </td>
+                      </tr>
+                      ` : ''}
+                      <tr>
+                        <td style="width: 120px; padding-bottom: 12px; vertical-align: top;">
+                          <span style="font-size: 13px; font-weight: 600; color: #666666; text-transform: uppercase; letter-spacing: 0.5px;">Subject</span>
+                        </td>
+                        <td style="padding-bottom: 12px;">
+                          <span style="font-size: 15px; color: #1a1a1a; font-weight: 500;">${safeSubject}</span>
+                        </td>
+                      </tr>
+                    </table>
+                  </td>
+                </tr>
+              </table>
+
+              <!-- Divider -->
+              <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%">
+                <tr>
+                  <td style="padding: 24px 0;">
+                    <div style="height: 1px; background-color: #e5e5e5;"></div>
+                  </td>
+                </tr>
+              </table>
+
+              <!-- Message Section -->
+              <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%">
+                <tr>
+                  <td style="padding-bottom: 12px;">
+                    <span style="font-size: 13px; font-weight: 600; color: #666666; text-transform: uppercase; letter-spacing: 0.5px;">Message</span>
+                  </td>
+                </tr>
+                <tr>
+                  <td style="padding: 20px; background-color: #f9fafb; border-radius: 6px; border-left: 3px solid #2563eb;">
+                    <div style="font-size: 15px; color: #1a1a1a; line-height: 1.6; white-space: pre-wrap;">${safeMessage}</div>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+
+          <!-- Footer -->
+          <tr>
+            <td style="padding: 24px 40px; background-color: #f9fafb; border-top: 1px solid #e5e5e5; border-radius: 0 0 8px 8px;">
+              <p style="margin: 0; font-size: 12px; color: #999999; text-align: center;">
+                This message was sent via the contact form on
+                <a href="https://desallyltd.com" style="color: #2563eb; text-decoration: none;">desallyltd.com</a>
+              </p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>
     `;
 
     const textContent = `
